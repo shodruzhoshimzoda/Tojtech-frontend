@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #10233f;
+  --color-ink-soft: #526783;
+  --color-paper: #f3f8ff;
+  --color-paper-raised: #ffffff;
+  --color-signal: #1769e0;
+  --color-signal-dim: #0d4fae;
+  --color-ember: #e05a33;
+  --color-line: #d7e4f3;
+  --color-panel: #0c2443;
+  --color-panel-line: #23466d;
+  --color-panel-text: #c9d9ed;
+  --color-good: #1f9d55;
+  --color-bad: #d64545;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    color: var(--color-ink);
+    background: var(--color-paper);
+  }
+
+  body {
+    margin: 0;
+    background: radial-gradient(circle at 8% 0%, rgba(73, 157, 255, 0.16), transparent 30rem), linear-gradient(135deg, #f5f9ff 0%, #edf5ff 48%, #f8fbff 100%);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+  }
+}
