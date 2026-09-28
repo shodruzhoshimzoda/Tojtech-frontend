@@ -7,13 +7,16 @@ interface Props {
   children: React.ReactNode;
 }
 
-/**
- * Client-side gate for UX only — hides admin screens from people who
- * shouldn't see them. It is NOT the real security boundary: the API's
- * RequireRole middleware is what actually protects the write endpoints.
- */
 export default function RequireRole({ role, children }: Props) {
-  const { user } = useAuth();
+  const { user, initializing } = useAuth();
+
+  if (initializing) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-ink-soft">
+        Loading…
+      </div>
+    );
+  }
 
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== role) return <Navigate to="/" replace />;
