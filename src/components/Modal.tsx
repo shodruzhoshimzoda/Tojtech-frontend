@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
+import { XIcon } from "./Icons";
 
 export default function Modal({
   title,
@@ -9,26 +10,50 @@ export default function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const titleId = useId();
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose]);
+
   return (
     <div
-      className="fixed inset-0 z-20 flex items-center justify-center bg-ink/40 px-4"
-      onClick={onClose}
+      // mousedown (not click) on the backdrop only: selecting text inside the
+      // form and releasing the mouse outside must not throw the form away.
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-panel/55 px-4 py-8 backdrop-blur-sm sm:items-center"
     >
       <div
-        className="w-full max-w-md rounded-lg border border-line bg-white p-6 shadow-[0_8px_30px_rgba(20,21,26,0.12)]"
-        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="w-full max-w-lg rounded-2xl border border-line bg-white shadow-float"
       >
-        <div className="mb-5 flex items-start justify-between">
-          <h2 className="font-display text-lg font-600 text-ink">{title}</h2>
+        <div className="flex items-center justify-between border-b border-line px-6 py-4">
+          <h2 id={titleId} className="font-display text-lg font-bold text-ink">
+            {title}
+          </h2>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-ink-soft hover:text-ink"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-mist hover:text-ink"
           >
-            ✕
+            <XIcon className="h-4 w-4" />
           </button>
         </div>
-        {children}
+        <div className="px-6 py-5">{children}</div>
       </div>
     </div>
   );

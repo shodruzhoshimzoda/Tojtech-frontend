@@ -12,8 +12,13 @@ export default function RequireRole({ role, children }: Props) {
 
   if (initializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-ink-soft">
-        Loading…
+      <div
+        role="status"
+        className="flex min-h-screen flex-col items-center justify-center gap-4 bg-paper text-sm text-ink-soft"
+        aria-live="polite"
+      >
+        <img src="/logo-mark.png" alt="" className="h-14 w-auto animate-pulse motion-reduce:animate-none" />
+        Checking your session
       </div>
     );
   }

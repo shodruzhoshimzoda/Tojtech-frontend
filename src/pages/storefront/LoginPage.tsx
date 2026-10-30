@@ -4,6 +4,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { extractError } from "../../api/client";
 import AuthFormShell from "../../components/AuthFormShell";
 import ErrorBanner from "../../components/ErrorBanner";
+import TextField from "../../components/TextField";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -28,47 +29,43 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthFormShell title="Log in" subtitle="Welcome back to TojTech.">
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <AuthFormShell
+      title="Log in"
+      subtitle="Welcome back. Pick up where you left off."
+      pitchTitle="Your cart and orders, wherever you log in."
+      pitchText="Sign in to keep your details in one place and check out faster."
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {error && <ErrorBanner message={error} />}
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-ink-soft">Email</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-signal"
-            placeholder="you@example.com"
-          />
-        </label>
+        <TextField
+          label="Email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+        />
+        <TextField
+          label="Password"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Your password"
+        />
 
-        <label className="flex flex-col gap-1.5 text-sm">
-          <span className="text-ink-soft">Password</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded-md border border-line bg-white px-3 py-2 text-ink outline-none focus:border-signal"
-            placeholder="••••••••"
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="mt-2 rounded-md bg-signal px-4 py-2.5 font-medium text-white transition-colors hover:bg-signal-dim disabled:opacity-60"
-        >
+        <button type="submit" disabled={submitting} className="btn btn-primary mt-1 w-full">
           {submitting ? "Logging in…" : "Log in"}
         </button>
       </form>
 
-      <p className="mt-6 text-sm text-ink-soft">
-        No account yet?{" "}
-        <Link to="/register" className="text-signal hover:underline">
-          Create one
+      <p className="mt-7 text-sm text-ink-soft">
+        New to TojTech?{" "}
+        <Link to="/register" className="font-semibold text-signal hover:underline">
+          Create an account
         </Link>
       </p>
     </AuthFormShell>

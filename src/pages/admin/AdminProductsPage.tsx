@@ -121,10 +121,14 @@ export default function AdminProductsPage() {
               is_main: true,
             });
           } catch (imgErr) {
-            // The product itself was created fine - don't lose that success,
-            // just surface that the image didn't make it.
+            // The product exists now. Switch the modal to edit mode so that
+            // pressing Save again patches it instead of creating a duplicate,
+            // and the image can be added from the images section below.
+            setEditingProduct(created);
+            setModalMode("edit");
+            setNewImageUrl("");
             setFormError(
-              `Product created, but the image failed to attach: ${extractError(imgErr)}`,
+              `Product created, but the image failed to attach: ${extractError(imgErr)}. You can add it below.`,
             );
             load();
             setSaving(false);
