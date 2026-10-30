@@ -1,19 +1,142 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, extractError } from "../../api/client";
+import { useCart } from "../../cart/CartContext";
 import ErrorBanner from "../../components/ErrorBanner";
+import Hero from "../../components/Hero";
+import { CheckIcon, PlusIcon, SearchIcon } from "../../components/Icons";
 import type { Category, Product } from "../../types";
+
+type SortKey = "newest" | "price-asc" | "price-desc" | "name";
 
 function money(n: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 }
 
+function mainImage(p: Product) {
+  return p.images?.find((i) => i.is_main) ?? p.images?.[0];
+}
+
+function StockLabel({ stock }: { stock: number }) {
+  const [tone, text] =
+    stock === 0
+      ? ["text-bad", "Out of stock"]
+      : stock <= 5
+        ? ["text-ember", `Only ${stock} left`]
+        : ["text-good", `${stock} in stock`];
+
+  return (
+    <p className={`mt-1 flex items-center gap-1.5 text-[13px] font-medium ${tone}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+      {text}
+    </p>
+  );
+}
+
+function ProductCard({
+  product,
+  categoryName,
+  inCart,
+  justAdded,
+  onAdd,
+}: {
+  product: Product;
+  categoryName?: string;
+  inCart: number;
+  justAdded: boolean;
+  onAdd: () => void;
+}) {
+  const image = mainImage(product);
+  const soldOut = product.stock === 0;
+  const allInCart = !soldOut && inCart >= product.stock;
+  const link = `/products/${product.uuid}`;
+
+  return (
+    <article className="group flex flex-col overflow-hidden rounded-[1.25rem] border border-line bg-white transition-shadow duration-200 hover:shadow-lift">
+      <Link to={link} className="block" tabIndex={-1} aria-hidden="true">
+        <div className="relative aspect-[4/3] overflow-hidden bg-mist">
+          {image ? (
+            <img
+              src={image.image_url}
+              alt=""
+              loading="lazy"
+              className={`h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] ${
+                soldOut ? "opacity-60 grayscale" : ""
+              }`}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <img src="/logo-mark.png" alt="" className="h-16 w-auto opacity-20" />
+            </div>
+          )}
+        </div>
+      </Link>
+
+      <div className="flex flex-1 flex-col p-4">
+        {categoryName && <p className="text-[13px] text-ink-soft">{categoryName}</p>}
+        <Link
+          to={link}
+          className="mt-0.5 line-clamp-2 font-display text-[15px] font-bold leading-snug text-ink transition-colors hover:text-signal"
+        >
+          {product.name}
+        </Link>
+
+        <div className="mt-auto flex items-end justify-between gap-3 pt-4">
+          <div>
+            <p className="font-display text-lg font-extrabold tabular-nums text-ink">
+              {money(product.price)}
+            </p>
+            <StockLabel stock={product.stock} />
+          </div>
+
+          <button
+            type="button"
+            onClick={onAdd}
+            disabled={soldOut || allInCart}
+            aria-label={
+              allInCart
+                ? `All available units of ${product.name} are in your cart`
+                : `Add ${product.name} to cart`
+            }
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              justAdded ? "bg-good" : "bg-signal hover:bg-signal-dim"
+            }`}
+          >
+            {justAdded ? <CheckIcon className="h-5 w-5" /> : <PlusIcon className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="overflow-hidden rounded-[1.25rem] border border-line bg-white">
+          <div className="skeleton aspect-[4/3]" />
+          <div className="space-y-3 p-4">
+            <div className="skeleton h-3 w-1/3 rounded" />
+            <div className="skeleton h-4 w-4/5 rounded" />
+            <div className="skeleton h-5 w-1/2 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CatalogPage() {
+  const { items, addItem } = useCart();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [addedUuid, setAddedUuid] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -28,154 +151,148 @@ export default function CatalogPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const categoryName = (uuid?: string) =>
-    categories.find((c) => c.uuid === uuid)?.name;
+  const categoryName = (uuid?: string) => categories.find((c) => c.uuid === uuid)?.name;
+  const cartQuantity = (uuid: string) => items.find((i) => i.productUuid === uuid)?.quantity ?? 0;
 
-  const visibleProducts = useMemo(() => {
-    if (!activeCategory) return products;
-    return products.filter((p) => p.category?.uuid === activeCategory);
-  }, [products, activeCategory]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = products.filter(
+      (p) =>
+        (!activeCategory || p.category?.uuid === activeCategory) &&
+        (!q || p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q)),
+    );
 
-  const featured = visibleProducts.slice(0, 3);
+    switch (sort) {
+      case "price-asc":
+        return [...list].sort((a, b) => a.price - b.price);
+      case "price-desc":
+        return [...list].sort((a, b) => b.price - a.price);
+      case "name":
+        return [...list].sort((a, b) => a.name.localeCompare(b.name));
+      default:
+        return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    }
+  }, [products, activeCategory, query, sort]);
+
+  function handleAdd(product: Product) {
+    addItem(product.uuid, 1);
+    setAddedUuid(product.uuid);
+    window.setTimeout(() => setAddedUuid((current) => (current === product.uuid ? null : current)), 1400);
+  }
+
+  const filtersActive = Boolean(query.trim() || activeCategory);
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10 md:py-14">
-      <section className="relative mb-14 overflow-hidden rounded-3xl bg-panel px-7 py-10 text-white shadow-[0_24px_70px_rgba(12,36,67,0.18)] md:grid md:grid-cols-2 md:items-center md:px-12 md:py-14">
-        <div className="pointer-events-none absolute -right-20 -top-28 h-80 w-80 rounded-full border-[38px] border-signal/30" />
-        <div>
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-blue-200">The blue shelf</p>
-          <h1 className="max-w-md font-display text-4xl font-600 leading-[1.05] md:text-5xl">
-            Electronics that keep up with you.
-          </h1>
-          <p className="mt-5 max-w-sm text-blue-100">
-            Every item on TojTech is checked against stock in real time —
-            what you see here is what's actually on the shelf.
-          </p>
-        </div>
-
-        <div className="relative h-64 hidden md:block">
-          {featured.length === 0 ? (
-            <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-blue-300/30 text-sm text-blue-100">
-              New arrivals will preview here
-            </div>
-          ) : (
-            featured.map((p, i) => {
-              const image = p.images?.find((im) => im.is_main) ?? p.images?.[0];
-              return (
-                <div
-                  key={p.uuid}
-                  className="absolute w-48 overflow-hidden rounded-xl border border-blue-100/40 bg-white text-ink shadow-[0_14px_30px_rgba(0,0,0,0.2)]"
-                  style={{
-                    right: `${i * 56}px`,
-                    top: `${i * 22}px`,
-                    zIndex: 10 - i,
-                    transform: `rotate(${(i - 1) * 3}deg)`,
-                  }}
-                >
-                  <div className="aspect-[4/3] w-full bg-line/40">
-                    {image && (
-                      <img
-                        src={image.image_url}
-                        alt={p.name}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </div>
-                  <div className="px-3 py-2">
-                    <p className="truncate text-xs font-medium text-ink">{p.name}</p>
-                    <p className="text-xs font-semibold text-ember">{money(p.price)}</p>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </section>
+    <div className="mx-auto max-w-6xl px-5 pt-6 sm:px-6 sm:pt-8">
+      <Hero products={products} />
 
       {error && (
-        <div className="mb-8">
+        <div className="mt-8">
           <ErrorBanner message={error} />
         </div>
       )}
 
-      {categories.length > 0 && (
-        <div className="mb-8 flex flex-wrap gap-2 border-b border-line pb-6">
-          <button
-            onClick={() => setActiveCategory(null)}
-            className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                activeCategory === null
-                ? "border-signal bg-signal text-white shadow-[0_5px_14px_rgba(23,105,224,0.2)]"
-                : "border-line bg-white/70 text-ink-soft hover:border-signal hover:text-signal"
-            }`}
-          >
-            All products
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.uuid}
-              onClick={() => setActiveCategory(c.uuid)}
-              className={`rounded-full border px-3.5 py-1.5 text-sm transition-colors ${
-                activeCategory === c.uuid
-                  ? "border-signal bg-signal text-white shadow-[0_5px_14px_rgba(23,105,224,0.2)]"
-                  : "border-line bg-white/70 text-ink-soft hover:border-signal hover:text-signal"
-              }`}
-            >
-              {c.name}
-            </button>
-          ))}
+      <section id="catalog" className="scroll-mt-24 pt-14">
+        <div className="flex items-center gap-4">
+          <h2 className="font-display text-2xl font-extrabold text-ink sm:text-3xl">Catalog</h2>
+          <div className="hidden h-px flex-1 bg-line sm:block" aria-hidden="true" />
+          <span
+            aria-hidden="true"
+            className="hidden h-3 w-3 rounded-full border-2 border-cyan sm:block"
+          />
         </div>
-      )}
 
-      {loading ? (
-        <p className="text-ink-soft">Loading catalog…</p>
-      ) : visibleProducts.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-line px-6 py-16 text-center">
-          <p className="text-ink">No products here yet.</p>
-          <p className="mt-1 text-sm text-ink-soft">
-            {activeCategory
-              ? "Try a different category, or check back soon."
-              : "The catalog is empty right now — check back soon."}
-          </p>
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="relative flex-1">
+            <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-soft" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search products"
+              aria-label="Search products"
+              className="input pl-10"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            aria-label="Sort products"
+            className="input sm:w-56"
+          >
+            <option value="newest">Newest first</option>
+            <option value="price-asc">Price: low to high</option>
+            <option value="price-desc">Price: high to low</option>
+            <option value="name">Name: A to Z</option>
+          </select>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
-          {visibleProducts.map((p) => {
-            const image = p.images?.find((im) => im.is_main) ?? p.images?.[0];
-            const catName = categoryName(p.category?.uuid);
-            return (
-              <Link key={p.uuid} to={`/products/${p.uuid}`} className="group block">
-                <div className="aspect-square w-full overflow-hidden rounded-2xl border border-line bg-white shadow-[0_8px_24px_rgba(32,83,137,0.07)]">
-                  {image ? (
-                    <img
-                      src={image.image_url}
-                      alt={p.name}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-ink-soft">
-                      No image
-                    </div>
-                  )}
-                </div>
-                <div className="mt-3 px-1">
-                  {catName && (
-                    <p className="text-xs text-ink-soft">{catName}</p>
-                  )}
-                  <h3 className="font-display text-sm font-600 text-ink">{p.name}</h3>
-                  <div className="mt-1 flex items-center justify-between">
-                    <span className="font-semibold text-ember">{money(p.price)}</span>
-                    <span
-                      className={`text-xs ${p.stock > 0 ? "text-good" : "text-bad"}`}
-                    >
-                      {p.stock > 0 ? `${p.stock} in stock` : "Out of stock"}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+
+        {categories.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" className="chip" aria-pressed={activeCategory === null} onClick={() => setActiveCategory(null)}>
+              All products
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.uuid}
+                type="button"
+                className="chip"
+                aria-pressed={activeCategory === c.uuid}
+                onClick={() => setActiveCategory(c.uuid)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <p className="mt-6 text-sm text-ink-soft" aria-live="polite">
+          {loading ? "Loading products" : `${visible.length} ${visible.length === 1 ? "product" : "products"}`}
+        </p>
+
+        <div className="mt-4">
+          {loading ? (
+            <SkeletonGrid />
+          ) : visible.length === 0 ? (
+            <div className="rounded-[1.25rem] border border-dashed border-line bg-white px-6 py-16 text-center">
+              <img src="/logo-mark.png" alt="" className="mx-auto h-14 w-auto opacity-30" />
+              <p className="mt-4 font-display text-lg font-bold text-ink">
+                {filtersActive ? "No products match your search" : "The catalog is empty"}
+              </p>
+              <p className="mt-1 text-sm text-ink-soft">
+                {filtersActive
+                  ? "Try a different word or clear the filters."
+                  : "New products will show up here as soon as they are added."}
+              </p>
+              {filtersActive && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm mt-5"
+                  onClick={() => {
+                    setQuery("");
+                    setActiveCategory(null);
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
+              {visible.map((p) => (
+                <ProductCard
+                  key={p.uuid}
+                  product={p}
+                  categoryName={categoryName(p.category?.uuid)}
+                  inCart={cartQuantity(p.uuid)}
+                  justAdded={addedUuid === p.uuid}
+                  onAdd={() => handleAdd(p)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </section>
     </div>
   );
 }

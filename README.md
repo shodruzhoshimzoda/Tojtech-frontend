@@ -1,73 +1,45 @@
-# TojTech — Frontend
+# TojTech Frontend
 
-Minimal React + TypeScript storefront and admin panel for the TojTech API.
+React + TypeScript storefront and admin panel for the TojTech API.
 
 ## Stack
 
-- React 19 + TypeScript, built with Vite
-- Tailwind CSS v4 for styling
-- React Router for routing
-- Axios for API calls
+Vite, React 19, TypeScript, Tailwind CSS v4, react-router 7, axios. Fonts (Montserrat, Figtree) are self-hosted through `@fontsource-variable`.
 
-## Setup
+## Run
 
 ```bash
+cp .env.example .env     # VITE_API_URL=http://localhost:8080/api/v1
 npm install
-cp .env.example .env   # already done — edit if your API runs elsewhere
-npm run dev
+npm run dev              # http://localhost:5173
 ```
 
-Runs at `http://localhost:5173`. Make sure the Go API is running (default
-`http://localhost:8080`) and that `VITE_API_URL` in `.env` points at it.
+The API must be running (see the backend repo: `docker compose up -d --build`) and its `CORS_ORIGIN` must be `http://localhost:5173`.
 
-**Backend CORS**: the API must allow `http://localhost:5173` as an origin
-(`cors.Handler` in `routes.go`) or requests from this dev server will be
-blocked by the browser.
+Other scripts: `npm run build` (typecheck + production build), `npm run preview`, `npm run lint`.
 
-## What's included
+## Features
 
-**Storefront** (public):
-- `/` — product catalog with category filtering
-- `/login`, `/register` — auth screens
+- Catalog with search, category filter, sorting and live stock labels
+- Product page with gallery and quantity picker limited by stock
+- Cart stored on the device (`localStorage`, key `tojtech_cart`); checkout is not implemented yet
+- Register / log in with automatic, race-free token refresh
+- Admin panel (`/admin`, admin role only): overview, products with image upload or link, categories
 
-**Admin panel** (requires an account with `role: "admin"`):
-- `/admin` — quick counts (products, categories, out-of-stock)
-- `/admin/products` — create/edit/delete products, manage product images
-- `/admin/categories` — create/edit/delete categories
-
-To get an admin account, register normally through the UI, then promote the
-user directly in Postgres:
-
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'you@example.com';
-```
-
-Log out and log back in afterwards — the role is baked into the JWT at login
-time, so an existing session won't pick up the change automatically.
-
-## Notes on how this is wired up
-
-- The access token lives in memory (a React context), not `localStorage`.
-  Refreshing the page logs you out — that's expected until the API grows a
-  refresh-token flow.
-- The client-side admin guard (`RequireRole`) is a UX convenience only. The
-  real access control is the API's `RequireRole` middleware — the UI simply
-  avoids showing screens a customer account can't use anyway.
-- A product's category comes back from the API as `{ uuid }` only (no name),
-  so pages that need a category's name fetch `/categories` separately and
-  match by `uuid` client-side.
-- API error responses are shaped as `{ "error": "...", "error_description":
-  "..." }`; `extractError()` in `src/api/client.ts` is the one place that
-  turns that into a string for the UI.
-
-## Project layout
+## Structure
 
 ```
-src/
-├── api/client.ts          axios instance, token injection, error parsing
-├── auth/AuthContext.tsx   login/register/logout, current user in memory
-├── components/            Navbar, admin sidebar layout, modal, route guard
-├── pages/storefront/      catalog, login, register
-├── pages/admin/           overview, products, categories
-└── types.ts               shapes matching the Go API's DTOs
+public/                logo and favicon assets
+src/api/client.ts      axios instance, shared token refresh
+src/auth/              AuthContext
+src/cart/              CartContext
+src/components/        nav, footer, hero, modal, form pieces, icons
+src/pages/storefront/  catalog, product, cart, login, register
+src/pages/admin/       overview, products, categories
+src/index.css          design tokens and shared component classes
 ```
+
+## Notes
+
+- Becoming an admin is done in the database, see the backend README.
+- Design tokens (colors, fonts, shadows) live in `@theme` in `src/index.css` and follow the TojTech logo palette.

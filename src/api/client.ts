@@ -28,32 +28,43 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-/**
- * Exchanges the refresh token stored in localStorage for a fresh access
- * token (the API also rotates the refresh token itself on every call).
- * Returns null if there's no stored token or it's no longer valid.
- */
-export async function refreshSession(): Promise<AuthResponse | null> {
+// Refresh tokens are single-use: every call revokes the old token. Two concurrent
+// calls with the same token would invalidate each other, so every caller shares
+// one in-flight request. React StrictMode runs the AuthProvider effect twice in
+// development, and the 401 interceptor below can fire at the same time as well.
+let refreshInFlight: Promise<AuthResponse | null> | null = null;
+
+async function performRefresh(): Promise<AuthResponse | null> {
   const refreshToken = getStoredRefreshToken();
   if (!refreshToken) return null;
 
   try {
-    // Plain axios, not `api` — going through `api` here would loop back
-    // into the response interceptor below.
+    // Plain axios, not `api`, so the response interceptor below cannot loop.
     const res = await axios.post<AuthResponse>(`${baseURL}/auth/refresh`, {
       refresh_token: refreshToken,
     });
     setAccessToken(res.data.access_token);
     setRefreshToken(res.data.refresh_token);
     return res.data;
-  } catch {
-    setAccessToken(null);
-    setRefreshToken(null);
+  } catch (err) {
+    // Only an explicit rejection ends the session. A network error or a 5xx
+    // keeps the stored token, so restarting the API does not log everyone out.
+    if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+      setAccessToken(null);
+      setRefreshToken(null);
+    }
     return null;
   }
 }
 
-let refreshPromise: Promise<AuthResponse | null> | null = null;
+export function refreshSession(): Promise<AuthResponse | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = performRefresh().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
 
 api.interceptors.response.use(
   (response) => response,
@@ -66,15 +77,14 @@ api.interceptors.response.use(
     if (!original || original._retry) {
       return Promise.reject(error);
     }
+
+    // A 401 from login/register/refresh means "wrong credentials", not "token expired".
+    if (original.url?.startsWith("/auth/")) {
+      return Promise.reject(error);
+    }
     original._retry = true;
 
-    if (!refreshPromise) {
-      refreshPromise = refreshSession().finally(() => {
-        refreshPromise = null;
-      });
-    }
-
-    const result = await refreshPromise;
+    const result = await refreshSession();
     if (result) {
       original.headers = original.headers ?? {};
       original.headers.Authorization = `Bearer ${result.access_token}`;
