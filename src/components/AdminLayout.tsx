@@ -1,12 +1,14 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { BoxIcon, GridIcon, LogoutIcon, StoreIcon, TagIcon } from "./Icons";
+import { BoxIcon, GridIcon, LogoutIcon, StoreIcon, TagIcon, UsersIcon } from "./Icons";
 
 const links = [
   { to: "/admin", label: "Overview", end: true, Icon: GridIcon },
   { to: "/admin/products", label: "Products", Icon: BoxIcon },
   { to: "/admin/categories", label: "Categories", Icon: TagIcon },
+  { to: "/admin/users", label: "Users", Icon: UsersIcon },
 ];
+
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();

@@ -6,7 +6,6 @@ import StorefrontNav from "./components/StorefrontNav";
 import StorefrontFooter from "./components/StorefrontFooter";
 import AdminLayout from "./components/AdminLayout";
 import RequireRole from "./components/RequireRole";
-
 import CatalogPage from "./pages/storefront/CatalogPage";
 import ProductPage from "./pages/storefront/ProductPage";
 import CartPage from "./pages/storefront/CartPage";
@@ -15,6 +14,7 @@ import RegisterPage from "./pages/storefront/RegisterPage";
 import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
+import AdminUsersPage from "./pages/admin/AdminUserpage";
 
 function StorefrontLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -59,6 +59,8 @@ export default function App() {
               <Route index element={<AdminOverviewPage />} />
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
+              <Route path="categories" element={<AdminCategoriesPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
