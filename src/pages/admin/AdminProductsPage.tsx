@@ -3,7 +3,7 @@ import { api, extractError } from "../../api/client";
 import ErrorBanner from "../../components/ErrorBanner";
 import ImagePicker from "../../components/ImagePicker";
 import Modal from "../../components/Modal";
-import type { Category, Product } from "../../types";
+import type { Brand, Category, Product } from "../../types";
 
 interface FormState {
   name: string;
@@ -12,6 +12,7 @@ interface FormState {
   price: string;
   stock: string;
   category_uuid: string;
+  brand_uuid: string; // "" means "no brand"
   imageUrl: string; // only used when creating - a fresh product has no uuid to attach images to yet
 }
 
@@ -22,6 +23,7 @@ const emptyForm: FormState = {
   price: "",
   stock: "",
   category_uuid: "",
+  brand_uuid: "",
   imageUrl: "",
 };
 
@@ -32,6 +34,8 @@ function money(n: number) {
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [brandsFailed, setBrandsFailed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -47,10 +51,17 @@ export default function AdminProductsPage() {
     Promise.all([
       api.get<{ products: Product[] }>("/products"),
       api.get<{ categories: Category[] }>("/categories"),
+      // Brands are optional: if this request fails the page still works, without the brand list.
+      api
+        .get<{ brands: Brand[] }>("/brands/all")
+        .then((res) => ({ list: res.data.brands ?? [], failed: false }))
+        .catch(() => ({ list: [] as Brand[], failed: true })),
     ])
-      .then(([p, c]) => {
+      .then(([p, c, b]) => {
         setProducts(p.data.products ?? []);
         setCategories(c.data.categories ?? []);
+        setBrands(b.list);
+        setBrandsFailed(b.failed);
       })
       .catch((err) => setError(extractError(err)))
       .finally(() => setLoading(false));
@@ -76,6 +87,7 @@ export default function AdminProductsPage() {
       price: String(product.price),
       stock: String(product.stock),
       category_uuid: product.category?.uuid ?? "",
+      brand_uuid: product.brand?.uuid ?? "",
       imageUrl: "", // not used in edit mode - the images manager below handles that
     });
     setEditingProduct(product);
@@ -105,6 +117,9 @@ export default function AdminProductsPage() {
       price: Number(form.price),
       stock: Number(form.stock),
       category: { uuid: form.category_uuid },
+      // The update replaces the whole product, so the brand is always sent:
+      // null means "no brand" (it removes the brand that was set before).
+      brand: form.brand_uuid ? { uuid: form.brand_uuid } : null,
     };
 
     try {
@@ -216,6 +231,7 @@ export default function AdminProductsPage() {
             <tr className="border-b border-line text-ink-soft">
               <th className="px-4 py-3 font-medium">Product</th>
               <th className="px-4 py-3 font-medium">Category</th>
+              <th className="px-4 py-3 font-medium">Brand</th>
               <th className="px-4 py-3 font-medium">Price</th>
               <th className="px-4 py-3 font-medium">Stock</th>
               <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -224,13 +240,13 @@ export default function AdminProductsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-ink-soft">
+                <td colSpan={6} className="px-4 py-6 text-center text-ink-soft">
                   Loading…
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-ink-soft">
+                <td colSpan={6} className="px-4 py-10 text-center text-ink-soft">
                   No products yet. Create the first one.
                 </td>
               </tr>
@@ -254,6 +270,7 @@ export default function AdminProductsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{categoryName(p.category?.uuid)}</td>
+                    <td className="px-4 py-3 text-ink-soft">{p.brand?.name ?? "—"}</td>
                     <td className="px-4 py-3 text-ink">{money(p.price)}</td>
                     <td className="px-4 py-3">
                       <span className={p.stock > 0 ? "text-good" : "text-bad"}>{p.stock}</span>
@@ -341,24 +358,52 @@ export default function AdminProductsPage() {
               </label>
             </div>
 
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-ink-soft">Category</span>
-              <select
-                required
-                value={form.category_uuid}
-                onChange={(e) => setForm({ ...form, category_uuid: e.target.value })}
-                className="rounded-md border border-line bg-white px-3 py-2 outline-none focus:border-signal"
-              >
-                <option value="" disabled>
-                  Select a category
-                </option>
-                {categories.map((c) => (
-                  <option key={c.uuid} value={c.uuid}>
-                    {c.name}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-ink-soft">Category</span>
+                <select
+                  required
+                  value={form.category_uuid}
+                  onChange={(e) => setForm({ ...form, category_uuid: e.target.value })}
+                  className="rounded-md border border-line bg-white px-3 py-2 outline-none focus:border-signal"
+                >
+                  <option value="" disabled>
+                    Select a category
                   </option>
-                ))}
-              </select>
-            </label>
+                  {categories.map((c) => (
+                    <option key={c.uuid} value={c.uuid}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-ink-soft">
+                  Brand <span className="text-ink-soft/70">(optional)</span>
+                </span>
+                <select
+                  value={form.brand_uuid}
+                  onChange={(e) => setForm({ ...form, brand_uuid: e.target.value })}
+                  className="rounded-md border border-line bg-white px-3 py-2 outline-none focus:border-signal"
+                >
+                  <option value="">No brand</option>
+                  {brands.map((b) => (
+                    <option key={b.uuid} value={b.uuid}>
+                      {b.name}
+                    </option>
+                  ))}
+                  {/* the product's current brand must stay selectable even if the brand list did not load */}
+                  {editingProduct?.brand && !brands.some((b) => b.uuid === editingProduct.brand?.uuid) && (
+                    <option value={editingProduct.brand.uuid}>{editingProduct.brand.name}</option>
+                  )}
+                </select>
+                {brandsFailed && <span className="text-xs text-bad">The brand list could not be loaded.</span>}
+                {!brandsFailed && brands.length === 0 && (
+                  <span className="text-xs text-ink-soft">No brands yet. Add them in the Brands section.</span>
+                )}
+              </label>
+            </div>
 
             {modalMode === "create" && (
               <ImagePicker

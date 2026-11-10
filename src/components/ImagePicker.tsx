@@ -2,16 +2,24 @@ import { useState, type ChangeEvent } from "react";
 
 type Mode = "link" | "upload";
 
-const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB: the data URL is stored as text in Postgres
+const DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB: the data URL is stored as text in Postgres
+
+function formatSize(bytes: number) {
+  return bytes >= 1024 * 1024 ? `${bytes / (1024 * 1024)} MB` : `${Math.round(bytes / 1024)} KB`;
+}
 
 export default function ImagePicker({
   value,
   onChange,
   label = "Image",
+  maxBytes = DEFAULT_MAX_FILE_BYTES,
+  fit = "cover",
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  maxBytes?: number; // biggest uploaded file (logos are small, so brands use a lower limit)
+  fit?: "cover" | "contain"; // contain shows a whole logo without cropping
 }) {
   const [mode, setMode] = useState<Mode>("link");
   const [fileError, setFileError] = useState("");
@@ -24,8 +32,8 @@ export default function ImagePicker({
       setFileError("Please choose an image file.");
       return;
     }
-    if (file.size > MAX_FILE_BYTES) {
-      setFileError("The image is larger than 2 MB. Choose a smaller one.");
+    if (file.size > maxBytes) {
+      setFileError(`The image is larger than ${formatSize(maxBytes)}. Choose a smaller one.`);
       return;
     }
 
@@ -83,7 +91,7 @@ export default function ImagePicker({
 
       {value && (
         <div className="mt-3 flex items-center gap-3 rounded-xl border border-line bg-paper p-2">
-          <img src={value} alt="Preview" className="h-14 w-14 rounded-lg border border-line object-cover" />
+          <img src={value} alt="Preview" className={`h-14 w-14 rounded-lg border border-line bg-white ${fit === "contain" ? "object-contain p-1" : "object-cover"}`} />
           <span className="flex-1 text-xs text-ink-soft">{value.startsWith("data:") ? "Uploaded from your device" : "Linked image"}</span>
           <button type="button" onClick={() => onChange("")} className="rounded-lg px-2 py-1 text-xs text-ink-soft transition-colors hover:text-bad">
             Remove

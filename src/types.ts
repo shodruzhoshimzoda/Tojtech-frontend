@@ -7,6 +7,17 @@ export interface Category {
   updated_at: string;
 }
 
+export interface Brand {
+  uuid: string;
+  name: string;
+  slug: string;
+  logo_url: string;
+  description: string;
+  product_count: number; // only the products that use this brand
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ProductImage {
   uuid: string;
   image_url: string;
@@ -17,6 +28,13 @@ export interface ProductCategoryRef {
   uuid: string;
 }
 
+// The short brand info inside a product (no logo: take it from the brands list by uuid).
+export interface ProductBrandRef {
+  uuid: string;
+  name: string;
+  slug: string;
+}
+
 export interface Product {
   uuid: string;
   name: string;
@@ -25,6 +43,7 @@ export interface Product {
   price: number;
   stock: number;
   category?: ProductCategoryRef;
+  brand?: ProductBrandRef;
   images?: ProductImage[];
   created_at: string;
   updated_at: string;

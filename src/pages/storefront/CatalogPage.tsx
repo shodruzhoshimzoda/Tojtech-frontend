@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, extractError } from "../../api/client";
 import { useCart } from "../../cart/CartContext";
+import BrandFilter, { type BrandOption } from "../../components/BrandFilter";
 import ErrorBanner from "../../components/ErrorBanner";
 import Hero from "../../components/Hero";
-import { CheckIcon, PlusIcon, SearchIcon } from "../../components/Icons";
-import type { Category, Product } from "../../types";
+import { CheckIcon, FilterIcon, PlusIcon, SearchIcon } from "../../components/Icons";
+import Modal from "../../components/Modal";
+import type { Brand, Category, Product } from "../../types";
 
 type SortKey = "newest" | "price-asc" | "price-desc" | "name";
 
@@ -36,12 +38,14 @@ function StockLabel({ stock }: { stock: number }) {
 function ProductCard({
   product,
   categoryName,
+  brandName,
   inCart,
   justAdded,
   onAdd,
 }: {
   product: Product;
   categoryName?: string;
+  brandName?: string;
   inCart: number;
   justAdded: boolean;
   onAdd: () => void;
@@ -73,7 +77,9 @@ function ProductCard({
       </Link>
 
       <div className="flex flex-1 flex-col p-4">
-        {categoryName && <p className="text-[13px] text-ink-soft">{categoryName}</p>}
+        {(brandName || categoryName) && (
+          <p className="text-[13px] text-ink-soft">{[brandName, categoryName].filter(Boolean).join(" · ")}</p>
+        )}
         <Link
           to={link}
           className="mt-0.5 line-clamp-2 font-display text-[15px] font-bold leading-snug text-ink transition-colors hover:text-signal"
@@ -132,6 +138,9 @@ export default function CatalogPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [brandLogos, setBrandLogos] = useState<Record<string, string>>({}); // slug -> logo url
+  const [filtersOpen, setFiltersOpen] = useState(false); // the brand dialog on phones
+  const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [loading, setLoading] = useState(true);
@@ -151,6 +160,63 @@ export default function CatalogPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Logos come from the brands list. The filter works without them (a letter is shown instead).
+  useEffect(() => {
+    api
+      .get<{ brands: Brand[] }>("/brands")
+      .then((res) => {
+        const logos: Record<string, string> = {};
+        for (const b of res.data.brands ?? []) logos[b.slug] = b.logo_url;
+        setBrandLogos(logos);
+      })
+      .catch(() => {});
+  }, []);
+
+  // The chosen brands live in the address: /?brand=asus&brand=msi. A link can be shared
+  // and the Back button undoes a choice. ?brand=asus,msi is read the same way.
+  const selectedBrands = useMemo(() => {
+    const slugs = searchParams
+      .getAll("brand")
+      .flatMap((value) => value.split(","))
+      .map((slug) => slug.trim().toLowerCase())
+      .filter(Boolean);
+    return [...new Set(slugs)];
+  }, [searchParams]);
+
+  function setBrands(next: string[]) {
+    const params = new URLSearchParams(searchParams);
+    params.delete("brand");
+    next.forEach((slug) => params.append("brand", slug));
+    setSearchParams(params);
+  }
+
+  function toggleBrand(slug: string) {
+    setBrands(selectedBrands.includes(slug) ? selectedBrands.filter((s) => s !== slug) : [...selectedBrands, slug]);
+  }
+
+  // Brands for the panel: the ones that have products in the chosen category, with the number of them.
+  // A brand that is chosen stays in the list even with 0 products, so it can be unchecked.
+  const brandOptions = useMemo<BrandOption[]>(() => {
+    const names = new Map<string, string>();
+    const counts = new Map<string, number>();
+    for (const p of products) {
+      if (!p.brand) continue;
+      names.set(p.brand.slug, p.brand.name);
+      if (!activeCategory || p.category?.uuid === activeCategory) {
+        counts.set(p.brand.slug, (counts.get(p.brand.slug) ?? 0) + 1);
+      }
+    }
+    for (const slug of selectedBrands) if (!names.has(slug)) names.set(slug, slug);
+
+    return [...names.entries()]
+      .map(([slug, name]) => ({ slug, name, logoUrl: brandLogos[slug] ?? "", count: counts.get(slug) ?? 0 }))
+      .filter((o) => o.count > 0 || selectedBrands.includes(o.slug))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products, activeCategory, selectedBrands, brandLogos]);
+
+  // Show the panel if any product has a brand (not only in the current category), so it does not jump around.
+  const hasBrands = products.some((p) => p.brand) || selectedBrands.length > 0;
+
   const categoryName = (uuid?: string) => categories.find((c) => c.uuid === uuid)?.name;
   const cartQuantity = (uuid: string) => items.find((i) => i.productUuid === uuid)?.quantity ?? 0;
 
@@ -159,6 +225,7 @@ export default function CatalogPage() {
     const list = products.filter(
       (p) =>
         (!activeCategory || p.category?.uuid === activeCategory) &&
+        (selectedBrands.length === 0 || (p.brand !== undefined && selectedBrands.includes(p.brand.slug))) &&
         (!q || p.name.toLowerCase().includes(q) || (p.description ?? "").toLowerCase().includes(q)),
     );
 
@@ -172,7 +239,7 @@ export default function CatalogPage() {
       default:
         return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
     }
-  }, [products, activeCategory, query, sort]);
+  }, [products, activeCategory, selectedBrands, query, sort]);
 
   function handleAdd(product: Product) {
     addItem(product.uuid, 1);
@@ -180,7 +247,7 @@ export default function CatalogPage() {
     window.setTimeout(() => setAddedUuid((current) => (current === product.uuid ? null : current)), 1400);
   }
 
-  const filtersActive = Boolean(query.trim() || activeCategory);
+  const filtersActive = Boolean(query.trim() || activeCategory || selectedBrands.length > 0);
 
   return (
     <div className="mx-auto max-w-6xl px-5 pt-6 sm:px-6 sm:pt-8">
@@ -246,53 +313,112 @@ export default function CatalogPage() {
           </div>
         )}
 
-        <p className="mt-6 text-sm text-ink-soft" aria-live="polite">
-          {loading ? "Loading products" : `${visible.length} ${visible.length === 1 ? "product" : "products"}`}
-        </p>
+        <div
+          className={
+            hasBrands ? "mt-6 lg:grid lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start lg:gap-8" : "mt-6"
+          }
+        >
+          {hasBrands && (
+            <aside
+              aria-label="Filters"
+              className="hidden rounded-[1.25rem] border border-line bg-white p-4 lg:sticky lg:top-24 lg:block"
+            >
+              <BrandFilter
+                options={brandOptions}
+                selected={selectedBrands}
+                onToggle={toggleBrand}
+                onClear={() => setBrands([])}
+              />
+            </aside>
+          )}
 
-        <div className="mt-4">
-          {loading ? (
-            <SkeletonGrid />
-          ) : visible.length === 0 ? (
-            <div className="rounded-[1.25rem] border border-dashed border-line bg-white px-6 py-16 text-center">
-              <img src="/logo-mark.png" alt="" className="mx-auto h-14 w-auto opacity-30" />
-              <p className="mt-4 font-display text-lg font-bold text-ink">
-                {filtersActive ? "No products match your search" : "The catalog is empty"}
+          <div className="min-w-0">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-ink-soft" aria-live="polite">
+                {loading ? "Loading products" : `${visible.length} ${visible.length === 1 ? "product" : "products"}`}
               </p>
-              <p className="mt-1 text-sm text-ink-soft">
-                {filtersActive
-                  ? "Try a different word or clear the filters."
-                  : "New products will show up here as soon as they are added."}
-              </p>
-              {filtersActive && (
+              {hasBrands && (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm mt-5"
-                  onClick={() => {
-                    setQuery("");
-                    setActiveCategory(null);
-                  }}
+                  onClick={() => setFiltersOpen(true)}
+                  className="btn btn-secondary btn-sm lg:hidden"
                 >
-                  Clear filters
+                  <FilterIcon className="h-4 w-4" />
+                  Filters
+                  {selectedBrands.length > 0 && (
+                    <span className="rounded-full bg-signal px-1.5 text-xs font-semibold text-white">
+                      {selectedBrands.length}
+                    </span>
+                  )}
                 </button>
               )}
             </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-3 xl:grid-cols-4">
-              {visible.map((p) => (
-                <ProductCard
-                  key={p.uuid}
-                  product={p}
-                  categoryName={categoryName(p.category?.uuid)}
-                  inCart={cartQuantity(p.uuid)}
-                  justAdded={addedUuid === p.uuid}
-                  onAdd={() => handleAdd(p)}
-                />
-              ))}
+
+            <div className="mt-4">
+              {loading ? (
+                <SkeletonGrid />
+              ) : visible.length === 0 ? (
+                <div className="rounded-[1.25rem] border border-dashed border-line bg-white px-6 py-16 text-center">
+                  <img src="/logo-mark.png" alt="" className="mx-auto h-14 w-auto opacity-30" />
+                  <p className="mt-4 font-display text-lg font-bold text-ink">
+                    {filtersActive ? "No products match your search" : "The catalog is empty"}
+                  </p>
+                  <p className="mt-1 text-sm text-ink-soft">
+                    {filtersActive
+                      ? "Try a different word or clear the filters."
+                      : "New products will show up here as soon as they are added."}
+                  </p>
+                  {filtersActive && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm mt-5"
+                      onClick={() => {
+                        setQuery("");
+                        setActiveCategory(null);
+                        setBrands([]);
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div
+                  className={`grid grid-cols-2 gap-4 sm:gap-6 ${
+                    hasBrands ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-4"
+                  }`}
+                >
+                  {visible.map((p) => (
+                    <ProductCard
+                      key={p.uuid}
+                      product={p}
+                      categoryName={categoryName(p.category?.uuid)}
+                      brandName={p.brand?.name}
+                      inCart={cartQuantity(p.uuid)}
+                      justAdded={addedUuid === p.uuid}
+                      onAdd={() => handleAdd(p)}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </section>
+
+      {filtersOpen && (
+        <Modal title="Filters" onClose={() => setFiltersOpen(false)}>
+          <BrandFilter
+            options={brandOptions}
+            selected={selectedBrands}
+            onToggle={toggleBrand}
+            onClear={() => setBrands([])}
+          />
+          <button type="button" onClick={() => setFiltersOpen(false)} className="btn btn-primary mt-5 w-full">
+            Show {visible.length} {visible.length === 1 ? "product" : "products"}
+          </button>
+        </Modal>
+      )}
     </div>
   );
 }

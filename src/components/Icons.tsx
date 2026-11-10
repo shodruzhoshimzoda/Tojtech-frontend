@@ -128,3 +128,18 @@ export const UsersIcon = (p: IconProps) => (
     <path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.2A6.5 6.5 0 0 1 21.5 20" />
   </Svg>
 );
+
+export const FilterIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Svg>
+);
+
+export const BadgeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3.2 14.3 5l2.9-.1.9 2.8 2.4 1.6-.9 2.8.9 2.8-2.4 1.6-.9 2.8-2.9-.1L12 20.8 9.7 19l-2.9.1-.9-2.8-2.4-1.6.9-2.8-.9-2.8 2.4-1.6.9-2.8L9.7 5 12 3.2Z" />
+    <path d="m9 12 2.2 2.2L15.2 10" />
+  </Svg>
+);

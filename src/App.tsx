@@ -14,6 +14,7 @@ import RegisterPage from "./pages/storefront/RegisterPage";
 import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
+import AdminBrandsPage from "./pages/admin/AdminBrandsPage";
 import AdminUsersPage from "./pages/admin/AdminUserpage";
 
 function StorefrontLayout({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,7 @@ export default function App() {
               <Route path="products" element={<AdminProductsPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
               <Route path="categories" element={<AdminCategoriesPage />} />
+              <Route path="brands" element={<AdminBrandsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
             </Route>
 
