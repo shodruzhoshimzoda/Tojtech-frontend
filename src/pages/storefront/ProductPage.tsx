@@ -131,6 +131,11 @@ export default function ProductPage() {
           <h1 className="mt-1.5 text-balance font-display text-3xl font-extrabold leading-tight text-ink md:text-4xl">
             {product.name}
           </h1>
+          {product.brand && (
+            <p className="mt-2 text-sm text-ink-soft">
+              Brand: <span className="font-medium text-ink">{product.brand.name}</span>
+            </p>
+          )}
 
           <p className="mt-5 font-display text-4xl font-extrabold tabular-nums text-ink">{money(product.price)}</p>
 
