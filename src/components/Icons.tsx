@@ -129,6 +129,14 @@ export const UsersIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const FilterIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9" />
+    <circle cx="15" cy="7" r="2" />
+    <circle cx="9" cy="17" r="2" />
+  </Svg>
+);
+
 export const BadgeIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M12 3.2 14.3 5l2.9-.1.9 2.8 2.4 1.6-.9 2.8.9 2.8-2.4 1.6-.9 2.8-2.9-.1L12 20.8 9.7 19l-2.9.1-.9-2.8-2.4-1.6.9-2.8-.9-2.8 2.4-1.6.9-2.8L9.7 5 12 3.2Z" />
