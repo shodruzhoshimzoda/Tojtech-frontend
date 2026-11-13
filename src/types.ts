@@ -54,6 +54,7 @@ export type Role = "admin" | "customer";
 export interface User {
   uuid: string;
   email: string;
+  username?: string; // empty for accounts created before usernames existed
   role: Role;
   created_at?: string;
 }

@@ -3,6 +3,7 @@ import { api, extractError } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import ErrorBanner from "../../components/ErrorBanner";
 import type { Role, User } from "../../types";
+import { avatarLetter, displayName } from "../../utils/displayName";
 
 function formatDate(value?: string) {
   if (!value) return "—";
@@ -101,7 +102,7 @@ export default function AdminUsersPage() {
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead>
             <tr className="border-b border-line bg-paper text-ink-soft">
-              <th className="px-5 py-3 font-medium">Email</th>
+             <th className="px-5 py-3 font-medium">User</th>
               <th className="px-5 py-3 font-medium">Role</th>
               <th className="px-5 py-3 font-medium">Joined</th>
             </tr>
@@ -133,12 +134,16 @@ export default function AdminUsersPage() {
                           aria-hidden="true"
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-mist font-display text-xs font-bold text-signal"
                         >
-                          {u.email.charAt(0).toUpperCase()}
+                           {avatarLetter(u)}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate font-medium text-ink">{u.email}</span>
-                          {isSelf && <span className="text-xs text-ink-soft">That's you</span>}
-                        </span>
+                          <span className="block truncate font-medium text-ink">{displayName(u)}</span>
+                          {u.username && (
+                            <span className="block truncate text-xs text-ink-soft">{u.email}</span>
+                          )}
+                          {isSelf && <span className="text-xs text-ink-soft">That's you
+                            </span>}
+                          </span>
                       </div>
                     </td>
                     <td className="px-5 py-3.5">
