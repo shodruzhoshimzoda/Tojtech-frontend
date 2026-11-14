@@ -2,7 +2,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { useCart } from "../cart/CartContext";
 import { CartIcon } from "./Icons";
-import { avatarLetter, displayName } from "../utils/displayName"
+import { avatarLetter, displayName } from "../utils/displayName";
 
 const linkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -55,8 +55,12 @@ export default function StorefrontNav() {
           </Link>
 
           {user ? (
-           <>
-              <div className="hidden items-center gap-2.5 md:flex">
+            <>
+              <Link
+                to="/profile"
+                aria-label="My profile"
+                className="hidden items-center gap-2.5 rounded-xl px-1.5 py-1 transition-colors hover:bg-mist md:flex"
+              >
                 <span
                   aria-hidden="true"
                   className="flex h-9 w-9 items-center justify-center rounded-full bg-navy font-display text-sm font-bold text-white"
@@ -64,7 +68,10 @@ export default function StorefrontNav() {
                   {avatarLetter(user)}
                 </span>
                 <span className="max-w-[11rem] truncate text-sm text-ink-soft">{displayName(user)}</span>
-              </div>
+              </Link>
+              <Link to="/profile" className="btn btn-secondary btn-sm md:hidden">
+                Profile
+              </Link>
               <button onClick={handleLogout} className="btn btn-secondary btn-sm">
                 Log out
               </button>

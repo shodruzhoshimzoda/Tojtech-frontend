@@ -15,6 +15,8 @@ interface AuthContextValue {
   initializing: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, username: string, password: string) => Promise<void>;
+  updateProfile: (username: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -49,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyAuthResponse(res.data);
   }
 
-    async function register(email: string, username: string, password: string) {
+  async function register(email: string, username: string, password: string) {
     await api.post("/auth/register", { email, username, password });
     try {
       await login(email, password);
@@ -58,6 +60,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Account created, but automatic sign-in failed. Please log in.",
       );
     }
+  }
+
+  // PATCH /me: the server answers with the updated user, so the name in the panels changes at once
+  async function updateProfile(username: string) {
+    const res = await api.patch<{ user: User }>("/me", { username });
+    setUser(res.data.user);
+  }
+
+  // POST /me/password: the server revokes all old sessions and gives this device a new one
+  async function changePassword(currentPassword: string, newPassword: string) {
+    const res = await api.post<AuthResponse>("/me/password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    applyAuthResponse(res.data);
   }
 
   function logout() {
@@ -73,7 +90,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const value = useMemo(
-    () => ({ user, isAdmin: user?.role === "admin", initializing, login, register, logout }),
+    () => ({
+      user,
+      isAdmin: user?.role === "admin",
+      initializing,
+      login,
+      register,
+      updateProfile,
+      changePassword,
+      logout,
+    }),
     [user, initializing],
   );
 
