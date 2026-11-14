@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/AuthContext";
 import ErrorBanner from "../../components/ErrorBanner";
 import { BoxIcon, TagIcon, AlertIcon } from "../../components/Icons";
 import type { Category, Product } from "../../types";
+import { displayName } from "../../utils/displayName";
 
 function money(n: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
@@ -87,7 +88,7 @@ export default function AdminOverviewPage() {
   return (
     <div className="mx-auto max-w-5xl">
       <h1 className="font-display text-2xl font-extrabold text-ink sm:text-3xl">Overview</h1>
-      <p className="mt-1 text-ink-soft">Signed in as {user?.email}. Here is the catalog right now.</p>
+      <p className="mt-1 text-ink-soft">Signed in as {user ? displayName(user) : ""}. Here is the catalog right now.</p>
 
       {error && (
         <div className="mt-6">

@@ -3,7 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import type { Role } from "../types";
 
 interface Props {
-  role: Role;
+  role?: Role; // without a role any logged-in user may pass
   children: React.ReactNode;
 }
 
@@ -24,7 +24,7 @@ export default function RequireRole({ role, children }: Props) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role !== role) return <Navigate to="/" replace />;
+  if (role && user.role !== role) return <Navigate to="/" replace />;
 
   return <>{children}</>;
 }

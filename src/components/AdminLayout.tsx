@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import { BadgeIcon, BoxIcon, GridIcon, LogoutIcon, StoreIcon, TagIcon, UsersIcon } from "./Icons";
+import { avatarLetter, displayName } from "../utils/displayName";
 
 const links = [
   { to: "/admin", label: "Overview", end: true, Icon: GridIcon },
@@ -68,15 +69,22 @@ export default function AdminLayout() {
               aria-hidden="true"
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan font-display text-sm font-bold text-panel"
             >
-              {user?.email.charAt(0).toUpperCase()}
+              {user ? avatarLetter(user) : ""}
             </span>
             <span className="min-w-0">
-              <span className="block truncate text-sm text-white">{user?.email}</span>
+              <span className="block truncate text-sm text-white">{user ? displayName(user) : ""}</span>
               <span className="block text-xs text-panel-text/70">Administrator</span>
             </span>
           </div>
 
           <div className="mt-4 space-y-1">
+            <Link
+              to="/profile"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-panel-line hover:text-white"
+            >
+              <UsersIcon className="h-[18px] w-[18px]" />
+              My profile
+            </Link>
             <Link
               to="/"
               className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors hover:bg-panel-line hover:text-white"

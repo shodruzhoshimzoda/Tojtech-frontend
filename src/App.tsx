@@ -11,6 +11,7 @@ import ProductPage from "./pages/storefront/ProductPage";
 import CartPage from "./pages/storefront/CartPage";
 import LoginPage from "./pages/storefront/LoginPage";
 import RegisterPage from "./pages/storefront/RegisterPage";
+import ProfilePage from "./pages/storefront/ProfilePage";
 import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
 import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
@@ -48,6 +49,14 @@ export default function App() {
             <Route path="/cart" element={<StorefrontLayout><CartPage /></StorefrontLayout>} />
             <Route path="/login" element={<StorefrontLayout><LoginPage /></StorefrontLayout>} />
             <Route path="/register" element={<StorefrontLayout><RegisterPage /></StorefrontLayout>} />
+            <Route
+              path="/profile"
+              element={
+                <RequireRole>
+                  <StorefrontLayout><ProfilePage /></StorefrontLayout>
+                </RequireRole>
+              }
+            />
 
             <Route
               path="/admin"
