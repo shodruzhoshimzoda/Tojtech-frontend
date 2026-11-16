@@ -24,10 +24,17 @@ export function checkPassword(password: string): PasswordRule[] {
     { id: "upper", label: "An uppercase letter (A–Z)", ok: /[A-Z]/.test(password) },
     { id: "digit", label: "A digit (0–9)", ok: /[0-9]/.test(password) },
     {
+      id: "special",
+      label: "A special character (for example _ & - +)",
+      // any printable ASCII symbol that is not a letter or a digit
+      ok: /[\x21-\x2F\x3A-\x40\x5B-\x60\x7B-\x7E]/.test(password),
+    },
+    {
       id: "chars",
-      label: "Only Latin letters and digits",
-      // an empty password has nothing forbidden, but it must not show a green tick
-      ok: password.length > 0 && /^[A-Za-z0-9]*$/.test(password),
+      label: "Only Latin letters, digits and symbols (no spaces)",
+      // printable ASCII without a space: letters, digits and symbols. An empty password
+      // has nothing forbidden, but it must not show a green tick
+      ok: password.length > 0 && /^[\x21-\x7E]*$/.test(password),
     },
   ];
 }
